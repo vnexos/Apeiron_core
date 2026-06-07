@@ -32,7 +32,7 @@ all: \
 $(KERNEL_FILE): $(OBJS)
 	@mkdir -p $(dir $@)
 	@echo -e "$(MSG_LD) Đang liên kết: $@"
-	@$(KERN_LD) -T$(LINKER_SCRIPT) $(KERN_LDFLAGS) -o $@ $^
+	@$(KERN_LD) -T$(KERN_LINKER_SCRIPT) $(KERN_LDFLAGS) -o $@ $^
 	@echo -e "$(MSG_LD) Đã liên kết thành công nhân lõi!"
 
 clean:

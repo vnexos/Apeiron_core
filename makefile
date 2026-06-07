@@ -14,7 +14,8 @@ INTERNAL_SUBDIRS   := bootloader kernel
 INTERNAL_DIR       := $(ROOT_DIR)/internal
 INTERNAL_BUILD_DIR := $(BUILD_DIR)/internal
 SHARED_DIR         := $(INTERNAL_DIR)/shared
-LINKER_SCRIPT      := $(INTERNAL_DIR)/linker_$(ARCH).ld
+BOOT_LINKER_SCRIPT := $(INTERNAL_DIR)/linker_boot_riscv64.ld
+KERN_LINKER_SCRIPT := $(INTERNAL_DIR)/linker_kern_$(ARCH).ld
 
 .PHONY: all clean $(INTERNAL_SUBDIRS)
 all: \
