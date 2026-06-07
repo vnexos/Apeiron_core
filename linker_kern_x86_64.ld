@@ -3,11 +3,11 @@ ENTRY(kernel_main)
 
 SECTIONS
 {
-    /* Địa chỉ ảo vùng cao "huyền thoại" của cậu */
+    /* Địa chỉ ảo vùng cao dành riêng cho Nhân hệ điều hành */
     . = 0xFFFFFF8080010000;
     _kernel_start = .;
 
-    /* Cần gộp cả các section khởi tạo nếu cậu dùng C++ */
+    /* Cần gộp cả các section khởi tạo nếu sử dụng tính năng khởi tạo toàn cục của C++ */
     .text : ALIGN(0x1000) {
         *(.text .text.*)
         *(.init)

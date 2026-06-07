@@ -1,6 +1,6 @@
 /**
  * @file efi.hpp
- * @brief Đây là cầu nỗi giữa mã nguồn C++ và và
+ * @brief Đây là cầu nối giữa mã nguồn C++ và
  * phần cứng thông qua firmware UEFI
  */
 #ifndef __SHARED__EFI_HPP
@@ -194,16 +194,16 @@ typedef struct
   EFI_HANDLE ParentHandle;
   void*      SystemTable;
 
-  // Source location of the image
+  // Vị trí nguồn của image trên đĩa
   EFI_HANDLE DeviceHandle;
   void*      FilePath; // EFI_DEVICE_PATH_PROTOCOL*
   void*      Reserved;
 
-  // Image’s load options
+  // Các tùy chọn tải của image
   uint32_t LoadOptionsSize;
   void*    LoadOptions;
 
-  // Location where image was loaded
+  // Vị trí bộ nhớ nơi image được nạp vào
   void*    ImageBase;
   uint64_t ImageSize;
   int      ImageCodeType; // EFI_MEMORY_TYPE
@@ -666,7 +666,7 @@ typedef struct
   uint16_t*                        FirmwareVendor;
   uint32_t                         FirmwareRevision;
   EFI_HANDLE                       ConsoleInHandle;
-  EFI_SIMPLE_TEXT_INPUT_PROTOCOL*  ConIn; // Simple Input Protocol
+  EFI_SIMPLE_TEXT_INPUT_PROTOCOL*  ConIn; // Giao thức nhập văn bản đơn giản
   EFI_HANDLE                       ConsoleOutHandle;
   EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL* ConOut;
   EFI_HANDLE                       StandardErrorHandle;

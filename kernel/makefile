@@ -14,7 +14,7 @@ include $(ROOT_DIR)/config/compile.mk
 
 KERN_DIR       := $(INTERNAL_DIR)/kernel
 KERN_BUILD_DIR := $(INTERNAL_BUILD_DIR)/kernel
-SRCS           := $(shell find $(KERN_DIR) -type f \( -name "*.cpp" -o -name "*.asm" \))
+SRCS           := $(shell find $(KERN_DIR) -type f \( -name "*.cpp" -o -name "*.s" \))
 OBJS           := $(patsubst $(KERN_DIR)/%.cpp,$(KERN_BUILD_DIR)/%.o,$(filter %.cpp,$(SRCS))) \
                   $(patsubst $(KERN_DIR)/%.s,$(KERN_BUILD_DIR)/%.s.o,$(filter %.s,$(SRCS)))
 $(eval $(call COMPILE_TEMPLATE,\

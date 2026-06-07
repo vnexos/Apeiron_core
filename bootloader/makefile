@@ -31,10 +31,10 @@ all: \
 	$(EFI_BIN)
 	@echo -e "$(MSG_VNEXOS) Hoàn tất biên dịch $(COLOR_AQUA)Bộ nạp khởi động VNExos$(MODE_RESET)."
 
-# Với riscv64, pipeline build EFI gồm 2 bước:
-# 1. ld.lld + linker script -> ELF executable (code bắt đầu từ VAddr=0x1000)
-# 2. tools/elf2efi_riscv64.py -> PE32+ EFI Application đúng chuẩn UEFI
-#    (có .reloc section rỗng bắt buộc để UEFI loader không reject image)
+# Với riscv64, quy trình build EFI gồm 2 bước:
+# 1. ld.lld + tập lệnh liên kết -> ELF thực thi (mã bắt đầu từ Địa chỉ ảo=0x1000)
+# 2. tools/elf2efi_riscv64.py -> Ứng dụng EFI chuẩn PE32+ đúng đặc tả UEFI
+#    (có section .reloc rỗng bắt buộc để UEFI loader không từ chối image)
 $(EFI_BIN): $(OBJS)
 	@mkdir -p $(EFI_BIN_DIR) $(BOOT_BUILD_DIR)
 ifeq ($(ARCH),riscv64)
@@ -49,5 +49,5 @@ endif
 	@echo -e "$(MSG_LD) Đã liên kết thành công thành bộ nạp khởi động!"
 
 clean:
-	@rm -rf $(KERN_BUILD_DIR)
+	@rm -rf $(BOOT_BUILD_DIR)
 	@echo -e "$(MSG_CLEAN) Bộ nạp khởi động đã được làm sạch!"
