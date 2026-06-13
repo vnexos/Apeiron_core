@@ -7,7 +7,7 @@
  * tiết.
  *
  * @file cpu.hpp
- * @brief Những câu lện đơn giản để tương tác với CPU
+ * @brief Những câu lệnh đơn giản để tương tác với CPU
  */
 #ifndef __SHARED__CPU_HPP
 #define __SHARED__CPU_HPP

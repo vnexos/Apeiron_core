@@ -1,8 +1,10 @@
 /**
  * Copyright (c) 2026 VNExos Inc.
+ * Bảo lưu mọi quyền.
  *
  * Được cấp phép theo Giấy phép Độc quyền.
- * Xem tệp LICENSE tại thư mục gốc để biết thêm chi tiết.
+ * Xem tệp LICENSE tại thư mục `internal` để biết thêm chi
+ * tiết.
  */
 OUTPUT_FORMAT(elf64-x86-64)
 ENTRY(kernel_main)

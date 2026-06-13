@@ -2,16 +2,18 @@
  * TẬP LỆNH LIÊN KẾT CHO BỘ NẠP KHỞI ĐỘNG RISC-V 64-BIT (UEFI)
  *
  * Copyright (c) 2026 VNExos Inc.
+ * Bảo lưu mọi quyền.
  *
  * Được cấp phép theo Giấy phép Độc quyền.
- * Xem tệp LICENSE tại thư mục gốc để biết thêm chi tiết.
+ * Xem tệp LICENSE tại thư mục `internal` để biết thêm chi
+ * tiết.
  *
  * LÝ DO:
  *   UEFI loader nạp chương trình EFI vào địa chỉ bộ nhớ tùy ý.
  *   RISC-V dùng địa chỉ hóa tương đối theo bộ đếm chương trình (auipc)
  *   nên mã tự nhiên độc lập vị trí — không cần tái địa chỉ hóa thực sự.
  *
- *   Tuy nhiên, tiêu đề PE yêu cầu không có section tại Địa chỉ ảo=0
+ *   Tuy nhiên, tiêu đề PE yêu cầu không có phân vùng tại Địa chỉ ảo=0
  *   (sẽ chồng lấp với tiêu đề PE), nên mã phải bắt đầu từ 0x1000.
  * =========================================================*/
 
@@ -43,7 +45,7 @@ SECTIONS {
         *(.sbss .sbss.*)
     }
 
-    /* Loại bỏ các section không cần thiết trong môi trường bare-metal UEFI */
+    /* Loại bỏ các phân vùng không cần thiết trong môi trường phần cứng trực tiếp UEFI */
     /DISCARD/ : {
         *(.dynamic)
         *(.dynsym)

@@ -299,8 +299,7 @@ typedef struct
   char16_t UnicodeChar; // Ký tự Unicode (ví dụ: 'a', 'b', '\r', '\n'...)
 } EFI_INPUT_KEY;
 
-// Khai báo trước (Forward declaration) để các hàm bên trong có thể tham chiếu
-// ngược lại struct
+// Khai báo trước để các hàm bên trong có thể tham chiếu ngược lại `struct`
 struct _EFI_SIMPLE_TEXT_INPUT_PROTOCOL;
 
 // Định nghĩa các con trỏ hàm theo chuẩn gọi của Microsoft (ms_abi)
