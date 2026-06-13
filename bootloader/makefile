@@ -13,14 +13,17 @@ export
 include $(ROOT_DIR)/config/compile.mk
 
 BOOT_DIR       := $(INTERNAL_DIR)/bootloader
+BOOT_SRC_DIR   := $(BOOT_DIR)/src
 BOOT_BUILD_DIR := $(INTERNAL_BUILD_DIR)/bootloader
 # Tệp ELF trung gian (chỉ dùng cho riscv64 trước khi chuyển sang PE)
 BOOT_ELF_SO    := $(BOOT_BUILD_DIR)/boot.elf
-SRCS           := $(shell find $(BOOT_DIR) -type f \( -name "*.cpp" -o -name "*.s" \))
-OBJS           := $(patsubst $(BOOT_DIR)/%.cpp,$(BOOT_BUILD_DIR)/%.o,$(filter %.cpp,$(SRCS))) \
-                  $(patsubst $(BOOT_DIR)/%.s,$(BOOT_BUILD_DIR)/%.s.o,$(filter %.s,$(SRCS)))
+SRCS           := $(shell find $(BOOT_SRC_DIR) -type f \( -name "*.cpp" -o -name "*.s" \))
+OBJS           := $(patsubst $(BOOT_SRC_DIR)/%.cpp,$(BOOT_BUILD_DIR)/%.o,$(filter %.cpp,$(SRCS))) \
+                  $(patsubst $(BOOT_SRC_DIR)/%.s,$(BOOT_BUILD_DIR)/%.s.o,$(filter %.s,$(SRCS)))
+
+BOOT_EFI_BIN   := $(EFI_BIN_DIR)/vnexos.efi
 $(eval $(call COMPILE_TEMPLATE,\
-	$(BOOT_DIR),\
+	$(BOOT_SRC_DIR),\
 	$(BOOT_BUILD_DIR),\
 	$(BOOT_FLAGS),\
 	$(BOOT_ASMFLAGS),\
@@ -28,14 +31,14 @@ $(eval $(call COMPILE_TEMPLATE,\
 
 .PHONY: all clean
 all: \
-	$(EFI_BIN)
+	$(BOOT_EFI_BIN)
 	@echo -e "$(MSG_VNEXOS) Hoàn tất biên dịch $(COLOR_AQUA)Bộ nạp khởi động VNExos$(MODE_RESET)."
 
 # Với riscv64, quy trình build EFI gồm 2 bước:
 # 1. ld.lld + tập lệnh liên kết -> ELF thực thi (mã bắt đầu từ Địa chỉ ảo=0x1000)
 # 2. tools/elf2efi_riscv64.py -> Ứng dụng EFI chuẩn PE32+ đúng đặc tả UEFI
 #    (có section .reloc rỗng bắt buộc để UEFI loader không từ chối image)
-$(EFI_BIN): $(OBJS)
+$(BOOT_EFI_BIN): $(OBJS)
 	@mkdir -p $(EFI_BIN_DIR) $(BOOT_BUILD_DIR)
 ifeq ($(ARCH),riscv64)
 	@echo -e "$(MSG_LD) Đang liên kết ELF trung gian: $(BOOT_ELF_SO)"

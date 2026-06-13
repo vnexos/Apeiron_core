@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2026 VNExos Inc.
  *
- * Được cấp phép theo Giấy phép MIT.
+ * Được cấp phép theo Giấy phép Độc quyền.
  * Xem tệp LICENSE tại thư mục gốc để biết thêm chi tiết.
  *
  * LÝ DO:

@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2026 VNExos Inc.
+ *
+ * Được cấp phép theo Giấy phép Độc quyền.
+ * Xem tệp LICENSE tại thư mục gốc để biết thêm chi tiết.
+ */
 OUTPUT_FORMAT("elf64-littleaarch64")
 OUTPUT_ARCH(aarch64)
 ENTRY(kernel_main)

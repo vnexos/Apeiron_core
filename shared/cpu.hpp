@@ -1,3 +1,14 @@
+/**
+ * Copyright (c) 2026 VNExos Inc.
+ * Bảo lưu mọi quyền.
+ *
+ * Được cấp phép theo Giấy phép Độc quyền.
+ * Xem tệp LICENSE tại thư mục `internal` để biết thêm chi
+ * tiết.
+ *
+ * @file cpu.hpp
+ * @brief Những câu lện đơn giản để tương tác với CPU
+ */
 #ifndef __SHARED__CPU_HPP
 #define __SHARED__CPU_HPP
 

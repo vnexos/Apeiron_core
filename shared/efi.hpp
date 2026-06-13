@@ -1,4 +1,11 @@
 /**
+ * Copyright (c) 2026 VNExos Inc.
+ * Bảo lưu mọi quyền.
+ *
+ * Được cấp phép theo Giấy phép Độc quyền.
+ * Xem tệp LICENSE tại thư mục `internal` để biết thêm chi
+ * tiết.
+ *
  * @file efi.hpp
  * @brief Đây là cầu nối giữa mã nguồn C++ và
  * phần cứng thông qua firmware UEFI
