@@ -22,7 +22,7 @@ $(eval $(call COMPILE_TEMPLATE,\
 	$(KERN_BUILD_DIR),\
 	$(KERNEL_FLAGS),\
 	$(KERNEL_ASMFLAGS),\
-	-I$(SHARED_DIR)))
+	-I$(BOOT_SHARED_DIR)))
 
 .PHONY: all clean
 all: \

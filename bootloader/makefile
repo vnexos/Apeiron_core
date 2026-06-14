@@ -27,7 +27,7 @@ $(eval $(call COMPILE_TEMPLATE,\
 	$(BOOT_BUILD_DIR),\
 	$(BOOT_FLAGS),\
 	$(BOOT_ASMFLAGS),\
-	-I$(SHARED_DIR)))
+	-I$(BOOT_SHARED_DIR)))
 
 .PHONY: all clean
 all: \
