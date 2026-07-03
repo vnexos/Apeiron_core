@@ -15,7 +15,7 @@ SECTIONS
     . = 0xFFFFFF8080010000;
     _kernel_start = .;
 
-    /* Cần gộp cả các section khởi tạo nếu sử dụng tính năng khởi tạo toàn cục của C++ */
+    /* Cần gộp cả các phân vùng khởi tạo nếu sử dụng tính năng khởi tạo toàn cục của C++ */
     .text : ALIGN(0x1000) {
         *(.text .text.*)
         *(.init)
@@ -30,7 +30,7 @@ SECTIONS
         *(.data .data.*)
     }
 
-    /* BSS không chiếm dung lượng file, nhưng cần để Kernel biết vùng RAM cần xóa */
+    /* BSS không chiếm dung lượng tệp, nhưng cần để Nhân biết vùng RAM cần xóa */
     .bss : ALIGN(0x1000) {
         *(.bss .bss.*)
         *(COMMON)
