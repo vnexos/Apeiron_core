@@ -20,7 +20,7 @@ KERN_LINKER_SCRIPT := $(INTERNAL_DIR)/linker_kern_$(ARCH).ld
 .PHONY: all clean $(INTERNAL_SUBDIRS)
 all: \
 	$(INTERNAL_SUBDIRS)
-	@echo -e "$(MSG_VNEXOS) Đã xây dựng xong chương trình lõi!"
+	@echo "$(MSG_VNEXOS) Đã xây dựng xong chương trình lõi!"
 
 $(INTERNAL_SUBDIRS):
 	@$(MAKE) -C $@
@@ -28,4 +28,4 @@ $(INTERNAL_SUBDIRS):
 clean:
 	@for dir in $(INTERNAL_SUBDIRS); do $(MAKE) -C $$dir clean; done
 	@rm -rf $(INTERNAL_BUILD_DIR)
-	@echo -e "$(MSG_CLEAN) Lõi đã được làm sạch sâu!"
+	@echo "$(MSG_CLEAN) Lõi đã được làm sạch sâu!"

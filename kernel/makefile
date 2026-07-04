@@ -27,14 +27,14 @@ $(eval $(call COMPILE_TEMPLATE,\
 .PHONY: all clean
 all: \
 	$(KERNEL_FILE)
-	@echo -e "$(MSG_VNEXOS) Hoàn tất biên dịch $(COLOR_AQUA)Nhân lõi Bản Nguyên$(MODE_RESET)."
+	@echo "$(MSG_VNEXOS) Hoàn tất biên dịch $(COLOR_AQUA)Nhân lõi Bản Nguyên$(MODE_RESET)."
 
 $(KERNEL_FILE): $(OBJS)
 	@mkdir -p $(dir $@)
-	@echo -e "$(MSG_LD) Đang liên kết: $@"
+	@echo "$(MSG_LD) Đang liên kết: $@"
 	@$(KERN_LD) -T$(KERN_LINKER_SCRIPT) $(KERN_LDFLAGS) -o $@ $^
-	@echo -e "$(MSG_LD) Đã liên kết thành công nhân lõi!"
+	@echo "$(MSG_LD) Đã liên kết thành công nhân lõi!"
 
 clean:
 	@rm -rf $(KERN_BUILD_DIR)
-	@echo -e "$(MSG_CLEAN) Nhân lõi đã được làm sạch!"
+	@echo "$(MSG_CLEAN) Nhân lõi đã được làm sạch!"
