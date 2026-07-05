@@ -18,7 +18,7 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
 {
   (void)ImageHandle;
   SystemTable->ConOut->ClearScreen(SystemTable->ConOut);
-  SystemTable->ConOut->OutputString(SystemTable->ConOut, EFI_TEXT("Hello world!"));
+  SystemTable->ConOut->OutputString(SystemTable->ConOut, EFI_TEXT("Hello world!\r\n"));
   while (true)
   {
     cpu_halt();

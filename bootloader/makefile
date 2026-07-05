@@ -50,6 +50,7 @@ else
 	@$(BOOT_LD) $(BOOT_LDFLAGS) -o $@ $^
 endif
 	@echo "$(MSG_LD) Đã liên kết thành công thành bộ nạp khởi động!"
+	@boreas -sign -s $(KEY_FILE) $(PUB_FILE) $@ $@
 
 clean:
 	@rm -rf $(BOOT_BUILD_DIR)
