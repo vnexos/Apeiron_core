@@ -19,7 +19,8 @@ BOOT_BUILD_DIR := $(INTERNAL_BUILD_DIR)/bootloader
 BOOT_ELF_SO    := $(BOOT_BUILD_DIR)/boot.elf
 SRCS           := $(shell find $(BOOT_SRC_DIR) -type f \( -name "*.cpp" -o -name "*.s" \))
 OBJS           := $(patsubst $(BOOT_SRC_DIR)/%.cpp,$(BOOT_BUILD_DIR)/%.o,$(filter %.cpp,$(SRCS))) \
-                  $(patsubst $(BOOT_SRC_DIR)/%.s,$(BOOT_BUILD_DIR)/%.s.o,$(filter %.s,$(SRCS)))
+                  $(patsubst $(BOOT_SRC_DIR)/%.s,$(BOOT_BUILD_DIR)/%.s.o,$(filter %.s,$(SRCS))) \
+				  $(shell find $(SHARED_BUILD_DIR) -type f \( -name "*.o" \))
 
 BOOT_EFI_BIN   := $(EFI_BIN_DIR)/vnexos.efi
 $(eval $(call COMPILE_TEMPLATE,\
