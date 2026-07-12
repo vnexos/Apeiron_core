@@ -12,6 +12,7 @@
 #include <common.hpp>
 #include <cpu.hpp>
 #include <efilib.hpp>
+#include <string.hpp>
 
 #include "graphics.hpp"
 
@@ -25,47 +26,12 @@ struct LoadingBlock
 
 struct LoadingBarStatus
 {
-  LoadingBlock                  block;
-  EFI_GRAPHICS_OUTPUT_PROTOCOL* gop;
-  EFI_BOOT_SERVICES*            bs;
-  uint64_t                      progress;
+  LoadingBlock                   block;
+  EFI_GRAPHICS_OUTPUT_PROTOCOL*  gop;
+  EFI_BOOT_SERVICES*             bs;
+  uint64_t                       progress;
+  EFI_GRAPHICS_OUTPUT_BLT_PIXEL* buffer;
 };
-
-void drawFilledCapsule(
-    EFI_GRAPHICS_OUTPUT_PROTOCOL*  gop,
-    EFI_GRAPHICS_OUTPUT_BLT_PIXEL* circleBuffer,
-    uint32_t                       width,
-    uint32_t                       height,
-    uint32_t                       posX,
-    uint32_t                       posY,
-    EFI_GRAPHICS_OUTPUT_BLT_PIXEL* primaryColor)
-{
-  if (width < height)
-    width = height;
-
-  uint32_t capWidth = (height + 1) / 2;
-
-  // Tính toán Delta (kích thước tính bằng byte của một hàng trong circleBuffer)
-  // circleBuffer là hình vuông có cạnh = height, do đó mỗi hàng dài height pixel.
-  uint32_t delta = height * sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL);
-
-  // Nửa bên trái
-  if (capWidth > 0)
-    gop->Blt(gop, circleBuffer, EfiBltBufferToVideo, 0, 0, posX, posY, capWidth, height, delta);
-
-  // Nửa bên phải (sẽ chồng lên pixel trung tâm của nửa trái nếu height là số lẻ)
-  uint32_t rightCapX       = posX + width - capWidth;
-  uint32_t rightCapSourceX = height - capWidth;
-  if (capWidth > 0)
-    gop->Blt(gop, circleBuffer, EfiBltBufferToVideo, rightCapSourceX, 0, rightCapX, posY, capWidth, height, delta);
-
-  // Khối chữ nhật ở giữa
-  if (width > 2 * capWidth)
-  {
-    uint32_t rectWidth = width - 2 * capWidth;
-    gop->Blt(gop, primaryColor, EfiBltVideoFill, 0, 0, posX + capWidth, posY, rectWidth, height, 0);
-  }
-}
 
 void EFI_API drawProgressBar(EFI_EVENT evt, void* context)
 {
@@ -77,16 +43,20 @@ void EFI_API drawProgressBar(EFI_EVENT evt, void* context)
   EFI_GRAPHICS_OUTPUT_BLT_PIXEL primary = {
       255, 255, 255, 0};
 
-  EFI_GRAPHICS_OUTPUT_BLT_PIXEL* circleBuffer;
-  status->bs->AllocatePool(EfiLoaderData, status->block.h * status->block.h * sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL), (void**)&circleBuffer);
-  drawFilledCircle(circleBuffer, status->block.h, &track, &background);
-  drawFilledCapsule(status->gop, circleBuffer, status->block.w, status->block.h, status->block.x, status->block.y, &track);
-  drawFilledCircle(circleBuffer, status->block.h - 4, &primary, &track);
-  drawFilledCapsule(status->gop, circleBuffer, status->block.h - 4 + (status->block.w - status->block.h) * status->progress / 100, status->block.h - 4, status->block.x + 2, status->block.y + 2, &primary);
-  status->bs->FreePool(circleBuffer);
+  memset(status->buffer, 0, status->block.w * status->block.h * sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL));
+  drawFilledCapsule(status->buffer, status->block.w, status->block.h, &track);
+  drawFilledCapsule(status->buffer, status->block.h + (status->block.w - status->block.h) * status->progress / 100, status->block.h, &primary, status->block.w);
+
+  status->gop->Blt(
+      status->gop, status->buffer,
+      EfiBltBufferToVideo,
+      0, 0,
+      status->block.x, status->block.y,
+      status->block.w, status->block.h,
+      0);
 
   status->progress++;
-  if (status->progress >= 100)
+  if (status->progress > 100)
     status->progress = 0;
 }
 
@@ -107,7 +77,7 @@ EFI_EVENT SetupTimer(EFI_BOOT_SERVICES* bs, LoadingBarStatus* context)
   status = bs->SetTimer(
       timerEvent,
       TimerPeriod,
-      500000);
+      5000);
   if (EFI_ERROR(status))
     return nullptr;
 
@@ -202,6 +172,7 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
     printf("POS : %d - %d\nSIZE: %d - %d\n", (int)loadingBarXOffset, (int)loadingBarYOffset, (int)loadingBarWidth, (int)loadingBarHeight);
 
     loadingStatus.block = {loadingBarXOffset, loadingBarYOffset, loadingBarWidth, loadingBarHeight};
+    bs->AllocatePool(EfiLoaderData, loadingBarWidth * loadingBarHeight * sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL), (void**)&loadingStatus.buffer);
 
     SetupTimer(bs, &loadingStatus);
   }
