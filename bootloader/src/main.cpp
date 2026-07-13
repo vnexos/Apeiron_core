@@ -12,9 +12,20 @@
 #include <common.hpp>
 #include <cpu.hpp>
 #include <efilib.hpp>
+#include <post_quantum/sign.hpp>
 #include <string.hpp>
 
 #include "graphics.hpp"
+
+#if defined(__x86_64__)
+#define BOOT_FILE EFI_TEXT("\\EFI\\BOOT\\BOOTX64.EFI")
+#elif defined(__aarch64__)
+#define BOOT_FILE EFI_TEXT("\\EFI\\BOOT\\BOOTAA64.EFI")
+#elif defined(__riscv)
+#define BOOT_FILE EFI_TEXT("\\EFI\\BOOT\\BOOTRISCV64.EFI")
+#else
+#error "Dòng vi xử lý này chưa được VNExos hỗ trợ!"
+#endif
 
 using namespace EFI;
 
@@ -31,14 +42,13 @@ struct LoadingBarStatus
   EFI_BOOT_SERVICES*             bs;
   uint64_t                       progress;
   EFI_GRAPHICS_OUTPUT_BLT_PIXEL* buffer;
+  bool                           bStopFlag = false;
 };
 
 void EFI_API drawProgressBar(EFI_EVENT evt, void* context)
 {
-  LoadingBarStatus*             status     = (LoadingBarStatus*)context;
-  EFI_GRAPHICS_OUTPUT_BLT_PIXEL background = {
-      0, 0, 0, 0};
-  EFI_GRAPHICS_OUTPUT_BLT_PIXEL track = {
+  LoadingBarStatus*             status = (LoadingBarStatus*)context;
+  EFI_GRAPHICS_OUTPUT_BLT_PIXEL track  = {
       128, 128, 128, 0};
   EFI_GRAPHICS_OUTPUT_BLT_PIXEL primary = {
       255, 255, 255, 0};
@@ -75,7 +85,13 @@ void EFI_API drawProgressBar(EFI_EVENT evt, void* context)
 
   status->progress++;
   if (status->progress >= 200)
-    status->progress = 0;
+  {
+    status->progress  = 0;
+    status->bStopFlag = true;
+  } else if (status->bStopFlag)
+  {
+    status->bStopFlag = false;
+  }
 }
 
 EFI_EVENT SetupTimer(EFI_BOOT_SERVICES* bs, LoadingBarStatus* context)
@@ -100,6 +116,18 @@ EFI_EVENT SetupTimer(EFI_BOOT_SERVICES* bs, LoadingBarStatus* context)
     return nullptr;
 
   return timerEvent;
+}
+
+void clearTimer(EFI_BOOT_SERVICES* bs, LoadingBarStatus* loadingStatus, EFI_EVENT timerEvent)
+{
+  if (timerEvent)
+  {
+    while (!loadingStatus->bStopFlag)
+    {
+      bs->Stall(0);
+    }
+    bs->SetTimer(timerEvent, TimerCancel, 0);
+  }
 }
 
 // TODO: Khi làm memory map thì kiếm phân vùng lớn nhất rồi đẩy rác vào cuối và lùi dần từng trang như stack để sau này dễ bề quản lý
@@ -144,6 +172,7 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
       SystemTable->BootServices,
       0};
 
+  EFI_EVENT timerEvent = nullptr;
   if (params->graphicsOutputProtocol)
   {
     EFI_GRAPHICS_OUTPUT_PROTOCOL* gop = params->graphicsOutputProtocol;
@@ -188,8 +217,48 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
     loadingStatus.block = {loadingBarXOffset, loadingBarYOffset, loadingBarWidth, loadingBarHeight};
     bs->AllocatePool(EfiLoaderData, loadingBarWidth * loadingBarHeight * sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL), (void**)&loadingStatus.buffer);
 
-    SetupTimer(bs, &loadingStatus);
+    timerEvent = SetupTimer(bs, &loadingStatus);
   }
+
+  /* Đọc khóa công khai vào bộ nhớ */
+  uint8_t* keyBuffer;
+  uint64_t keySize;
+  status = loadFile(EFI_TEXT("\\EFI\\BOOT\\root.crt"), &keyBuffer, &keySize);
+  if (EFI_ERROR(status))
+  {
+    printf("LOI: Khong the doc tep: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\EFI\\BOOT\\root.crt"));
+    waitForKey();
+    printf("\n");
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return status;
+  }
+
+  /* Đọc tệp bộ nạp khởi động mồi vào bộ nhớ */
+  uint8_t* bootBuffer;
+  uint64_t bootSize;
+  status = loadFile(BOOT_FILE, &bootBuffer, &bootSize);
+  if (EFI_ERROR(status))
+  {
+    printf("LOI: Khong the doc tep: %ws\nNhan phim bat ky de thoat...", BOOT_FILE);
+    waitForKey();
+    printf("\n");
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return status;
+  }
+
+  /* Tiến hành xác thực ngược chữ ký */
+  if (!Sign::verifyEfiFileSignature(bootBuffer, bootSize, keyBuffer, keySize))
+  {
+    printf("LOI: Chu ky khong hop le: %ws\nNhan phim bat ky de thoat...", BOOT_FILE);
+    waitForKey();
+    printf("\n");
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return status;
+  }
+
+  waitForKey();
+
+  clearTimer(bs, &loadingStatus, timerEvent);
 
   while (true)
   {
