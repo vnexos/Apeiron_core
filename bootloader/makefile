@@ -52,6 +52,7 @@ else
 endif
 	@echo "$(MSG_LD) Đã liên kết thành công thành bộ nạp khởi động!"
 	@boreas -sign -s $(KEY_FILE) $(PUB_FILE) $@ $@
+	@sbsign --key $(CERT_DIR)/vnexos_db.key --cert $(CERT_DIR)/vnexos_db.crt --output $@ $@
 
 clean:
 	@rm -rf $(BOOT_BUILD_DIR)
