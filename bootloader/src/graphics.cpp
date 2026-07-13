@@ -15,7 +15,7 @@
 #include <efilib.hpp>
 
 // Căn bậc 2 bằng thuật toán Babylon/Newton
-static uint32_t sqrt(uint32_t value)
+static uint32_t sqrt_algo(uint32_t value)
 {
   if (value == 0) return 0;
   uint32_t res = value;
@@ -25,6 +25,25 @@ static uint32_t sqrt(uint32_t value)
     pre = res;
     res = (res + value / res) / 2;
   } while (pre > res + 1 || res > pre + 1);
+  return res;
+}
+
+#define SQRT_CACHE_SIZE 8192
+static uint32_t sqrtCacheKeys[SQRT_CACHE_SIZE];
+static uint32_t sqrtCacheValues[SQRT_CACHE_SIZE];
+
+static uint32_t cached_sqrt(uint32_t value)
+{
+  if (value == 0) return 0;
+  // Băm giá trị để lấy index
+  uint32_t idx = (value ^ (value >> 13) ^ (value >> 21)) & (SQRT_CACHE_SIZE - 1);
+
+  if (sqrtCacheKeys[idx] == value && sqrtCacheValues[idx] != 0)
+    return sqrtCacheValues[idx];
+
+  uint32_t res         = sqrt_algo(value);
+  sqrtCacheKeys[idx]   = value;
+  sqrtCacheValues[idx] = res;
   return res;
 }
 
@@ -59,7 +78,7 @@ void drawFilledCircle(EFI_GRAPHICS_OUTPUT_BLT_PIXEL* buffer, uint32_t diameter, 
       uint32_t distSquare = (uint32_t)(dxSquare + dySquare);
 
       // Khai căn để lấy khoảng cách tuyến tính thực tế
-      int32_t dist = sqrt(distSquare << 8);
+      int32_t dist = cached_sqrt(distSquare << 8);
 
       int32_t alpha = 0;
 
@@ -91,7 +110,7 @@ void drawFilledCircle(EFI_GRAPHICS_OUTPUT_BLT_PIXEL* buffer, uint32_t diameter, 
   }
 }
 
-void drawFilledCapsule(EFI_GRAPHICS_OUTPUT_BLT_PIXEL* buffer, uint32_t width, uint32_t height, EFI_GRAPHICS_OUTPUT_BLT_PIXEL* color, uint32_t delta)
+void drawFilledCapsule(EFI_GRAPHICS_OUTPUT_BLT_PIXEL* buffer, uint32_t width, uint32_t height, EFI_GRAPHICS_OUTPUT_BLT_PIXEL* color, uint32_t delta, uint32_t xOffset)
 {
   // Chiều rộng tối thiểu phải bằng chiều cao của hình viên thuốc
   if (width < height)
@@ -110,10 +129,10 @@ void drawFilledCapsule(EFI_GRAPHICS_OUTPUT_BLT_PIXEL* buffer, uint32_t width, ui
   int32_t cy = (diameter << 8) / 2;
 
   // Tọa độ của hình tròn ở đầu
-  int32_t cx1 = (diameter << 8) / 2;
+  int32_t cx1 = ((diameter << 8) / 2) + (xOffset << 8);
 
   // Tọa độ của hình tròn ở đuôi
-  int32_t cx2 = (width << 8) - rOutside;
+  int32_t cx2 = ((width + xOffset) << 8) - rOutside;
 
   const int32_t ALPHA_MAX = 256;
 
@@ -123,7 +142,7 @@ void drawFilledCapsule(EFI_GRAPHICS_OUTPUT_BLT_PIXEL* buffer, uint32_t width, ui
     int32_t  dy          = fixedPointY - cy;
     uint32_t dySquare    = (uint32_t)(dy * dy) >> 8;
 
-    for (uint32_t x = 0; x < width; ++x)
+    for (uint32_t x = xOffset; x < width + xOffset; ++x)
     {
       EFI_GRAPHICS_OUTPUT_BLT_PIXEL* pixel       = &buffer[y * delta + x];
       int32_t                        fixedPointX = (x << 8) + 128;
@@ -140,7 +159,7 @@ void drawFilledCapsule(EFI_GRAPHICS_OUTPUT_BLT_PIXEL* buffer, uint32_t width, ui
         uint32_t distSquare = dxSquare + dySquare;
 
         // Khai căn để lấy khoảng cách tuyến tính
-        int32_t dist = sqrt(distSquare << 8);
+        int32_t dist = cached_sqrt(distSquare << 8);
 
         if (dist <= rInside)
         {

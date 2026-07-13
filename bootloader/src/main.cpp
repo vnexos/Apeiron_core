@@ -45,7 +45,25 @@ void EFI_API drawProgressBar(EFI_EVENT evt, void* context)
 
   memset(status->buffer, 0, status->block.w * status->block.h * sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL));
   drawFilledCapsule(status->buffer, status->block.w, status->block.h, &track);
-  drawFilledCapsule(status->buffer, status->block.h + (status->block.w - status->block.h) * status->progress / 100, status->block.h, &primary, status->block.w);
+  uint32_t maxWidth = status->block.w * 20 / 100;
+
+  uint32_t totalVirtualRange = status->block.w + maxWidth - 2 * status->block.h;
+
+  // Áp dụng thuật toán Ease-in-out (Smoothstep) bằng số nguyên
+  // Công thức: f(x) = x^2 * (3 - 2x)
+  // Tạo hiệu ứng Ping-pong dội qua lại (0 -> 100 -> 0)
+  uint32_t p       = status->progress <= 100 ? status->progress : 200 - status->progress;
+  uint32_t p_eased = (p * p * (300 - 2 * p)) / 10000;
+
+  uint32_t virtualX = status->block.h + (totalVirtualRange * p_eased) / 100;
+
+  uint32_t xRight    = virtualX > status->block.w ? status->block.w : virtualX;
+  int32_t  xLeftCalc = (int32_t)virtualX - (int32_t)maxWidth;
+  uint32_t xLeft     = xLeftCalc < 0 ? 0 : xLeftCalc;
+
+  uint32_t width = xRight - xLeft;
+  if (width < status->block.h) width = status->block.h;
+  drawFilledCapsule(status->buffer, width, status->block.h, &primary, status->block.w, xLeft);
 
   status->gop->Blt(
       status->gop, status->buffer,
@@ -56,7 +74,7 @@ void EFI_API drawProgressBar(EFI_EVENT evt, void* context)
       0);
 
   status->progress++;
-  if (status->progress > 100)
+  if (status->progress >= 200)
     status->progress = 0;
 }
 
@@ -126,8 +144,6 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
       SystemTable->BootServices,
       0};
 
-  printf("SCREEN: %d %d \n", params->horizontalResolution, params->verticalResolution);
-
   if (params->graphicsOutputProtocol)
   {
     EFI_GRAPHICS_OUTPUT_PROTOCOL* gop = params->graphicsOutputProtocol;
@@ -168,8 +184,6 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
         loadingBarYOffset = params->verticalResolution - loadingBarHeight - 10;
       }
     }
-
-    printf("POS : %d - %d\nSIZE: %d - %d\n", (int)loadingBarXOffset, (int)loadingBarYOffset, (int)loadingBarWidth, (int)loadingBarHeight);
 
     loadingStatus.block = {loadingBarXOffset, loadingBarYOffset, loadingBarWidth, loadingBarHeight};
     bs->AllocatePool(EfiLoaderData, loadingBarWidth * loadingBarHeight * sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL), (void**)&loadingStatus.buffer);

@@ -27,16 +27,20 @@ void drawFilledCircle(
     EFI_GRAPHICS_OUTPUT_BLT_PIXEL* primaryColor);
 
 /**
- * Vẽ một hình viên thuốc khít với bộ đệm
- * @param buffer Bộ đệm để vẽ hình viên thuốc
- * @param width  Chiều rộng của hình viên thuốc
- * @param height Chiều cao của hình viên thuốc
- * @param color  Màu của hình viên thuốc
- * @param delta  Chiều rộng của bộ đệm
+ * Vẽ một hình viên thuốc có đổ màu khít với chiều cao cho trước.
+ *
+ * @param buffer Bộ đệm màn hình hoặc khối điểm ảnh
+ * @param width  Chiều dài hình viên thuốc
+ * @param height Chiều cao hình viên thuốc
+ * @param color  Màu nền của hình viên thuốc
+ * @param delta  (Tùy chọn) Kích thước tính bằng byte của một dòng
+ *               trong bộ đệm nếu như bộ đệm lớn hơn kích thước hình
+ *               cần vẽ. Bằng 0 nếu lấy đúng `width`.
  */
 void drawFilledCapsule(
     EFI_GRAPHICS_OUTPUT_BLT_PIXEL* buffer,
     uint32_t                       width,
     uint32_t                       height,
     EFI_GRAPHICS_OUTPUT_BLT_PIXEL* color,
-    uint32_t                       delta = 0);
+    uint32_t                       delta   = 0,
+    uint32_t                       xOffset = 0);
