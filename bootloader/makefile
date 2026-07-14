@@ -28,7 +28,7 @@ $(eval $(call COMPILE_TEMPLATE,\
 	$(BOOT_BUILD_DIR),\
 	$(BOOT_FLAGS),\
 	$(BOOT_ASMFLAGS),\
-	-I$(BOOT_SHARED_DIR)))
+	-I$(BOOT_SHARED_DIR) -D__EFI_ALLOWED))
 
 .PHONY: all clean
 all: \

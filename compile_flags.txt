@@ -1,3 +1,4 @@
 -I../shared
 -std=c++23
 -Wall -Wextra
+-D__EFI_ALLOWED

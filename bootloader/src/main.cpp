@@ -170,13 +170,12 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
       {0, 0, 0, 0},
       params->graphicsOutputProtocol,
       SystemTable->BootServices,
-      0};
+      0,
+      nullptr};
 
   EFI_EVENT timerEvent = nullptr;
   if (params->graphicsOutputProtocol)
   {
-    EFI_GRAPHICS_OUTPUT_PROTOCOL* gop = params->graphicsOutputProtocol;
-
     /* Tính toán vị trí đẹp cho thanh chờ */
     uint32_t loadingBarWidth;
     if (params->verticalResolution > params->horizontalResolution)
