@@ -1,0 +1,78 @@
+/**
+ * Copyright (c) 2026 VNExos Inc.
+ * Bảo lưu mọi quyền.
+ *
+ * Được cấp phép theo Giấy phép Độc quyền.
+ * Xem tệp LICENSE tại thư mục `internal` để biết thêm chi
+ * tiết.
+ */
+OUTPUT_FORMAT(binary)
+
+SECTIONS
+{
+    /* Đặt địa chỉ gốc ảo là 0 để tiện tính toán */
+    . = 0x0;
+
+    /* KHỐI CODE: Làm tròn theo trang 4KB */
+    .text : ALIGN(0x1000) {
+        _text_start = .;
+
+        KEEP(*(.text._Z5entryv));      /* Ép hàm mồi tại vị trí 0x0 */
+        *(.text .text.*)
+        
+        KEEP(*(.init))             /* Mã máy khởi tạo hệ thống cổ điển */
+        KEEP(*(.fini))             /* Mã máy hủy hệ thống cổ điển */
+
+        _text_end = .;
+    }
+
+    /* KHỐI DỮ LIỆU CHUNG: Làm tròn theo trang 4KB */
+    .rodata : ALIGN(0x1000) {
+        _rodata_start = .;
+        *(.rodata .rodata.*)
+        _rodata_end = .;
+    }
+
+    .data : ALIGN(0x1000) {
+        _data_start = .;
+        *(.data .data.*)
+
+        ALIGN(8);
+        _init_array_start = .;
+        KEEP(*(.init_array))
+        KEEP(*(.init_array.*))
+        _init_array_end = .;
+
+        ALIGN(8);
+        _fini_array_start = .;
+        KEEP(*(.fini_array))
+        KEEP(*(.fini_array.*))
+        _fini_array_end = .;
+        
+        _data_end = .;
+    }
+
+    /* KHỐI DỮ LIỆU ẢO: Làm tròn theo trang 4KB */
+    .bss : ALIGN(0x1000) {
+        _bss_start = .;
+        *(.bss .bss.*)
+        *(COMMON)
+        _bss_end = .;
+    }
+
+    /DISCARD/ : { 
+        *(.comment)
+        *(.note*)
+        *(.eh_frame*)
+
+        /* QUÉT SẠCH RÁC DYNAMIC CỦA -fPIE: */
+        *(.interp)
+        *(.dynamic)
+        *(.dynsym)
+        *(.dynstr)
+        *(.gnu.hash)
+        *(.hash)
+        *(.got)
+        *(.plt)
+    }
+}

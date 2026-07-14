@@ -11,48 +11,45 @@
 export
 
 include $(ROOT_DIR)/config/compile.mk
+include $(ROOT_DIR)/config/linker.mk
 
 BOOT_DIR       := $(INTERNAL_DIR)/bootloader
 BOOT_SRC_DIR   := $(BOOT_DIR)/src
+BOOT_INC_DIR   := $(BOOT_DIR)/inc
 BOOT_BUILD_DIR := $(INTERNAL_BUILD_DIR)/bootloader
 # Tệp ELF trung gian (chỉ dùng cho riscv64 trước khi chuyển sang PE)
 BOOT_ELF_SO    := $(BOOT_BUILD_DIR)/boot.elf
 SRCS           := $(shell find $(BOOT_SRC_DIR) -type f \( -name "*.cpp" -o -name "*.s" \))
-OBJS           := $(patsubst $(BOOT_SRC_DIR)/%.cpp,$(BOOT_BUILD_DIR)/%.o,$(filter %.cpp,$(SRCS))) \
-                  $(patsubst $(BOOT_SRC_DIR)/%.s,$(BOOT_BUILD_DIR)/%.s.o,$(filter %.s,$(SRCS))) \
-				  $(shell find $(SHARED_BUILD_DIR) -type f \( -name "*.o" \))
+X86_64_OBJS    := $(patsubst $(BOOT_SRC_DIR)/%.cpp,$(BOOT_BUILD_DIR)/%.x86_64.o,$(filter %.cpp,$(SRCS))) \
+                  $(patsubst $(BOOT_SRC_DIR)/%.s,$(BOOT_BUILD_DIR)/%.x86_64.s.o,$(filter %.s,$(SRCS))) \
+				  $(shell find $(BOOT_SHARED_DIR) -type f \( -name "*.x86_64.o" \))
+AARCH64_OBJS   := $(patsubst $(BOOT_SRC_DIR)/%.cpp,$(BOOT_BUILD_DIR)/%.aarch64.o,$(filter %.cpp,$(SRCS))) \
+				  $(patsubst $(BOOT_SRC_DIR)/%.s,$(BOOT_BUILD_DIR)/%.aarch64.s.o,$(filter %.s,$(SRCS))) \
+				  $(shell find $(BOOT_SHARED_DIR) -type f \( -name "*.aarch64.o" \))
+RISCV64_OBJS   := $(patsubst $(BOOT_SRC_DIR)/%.cpp,$(BOOT_BUILD_DIR)/%.riscv64.o,$(filter %.cpp,$(SRCS))) \
+				  $(patsubst $(BOOT_SRC_DIR)/%.s,$(BOOT_BUILD_DIR)/%.riscv64.s.o,$(filter %.s,$(SRCS))) \
+				  $(shell find $(BOOT_SHARED_DIR) -type f \( -name "*.riscv64.o" \))
 
-BOOT_EFI_BIN   := $(EFI_BIN_DIR)/vnexos.efi
-$(eval $(call COMPILE_TEMPLATE,\
+BOOT_EFI_BINS  := $(EFI_BIN_DIR)/vnexosx64.efi \
+				  $(EFI_BIN_DIR)/vnexosaa64.efi \
+				  $(EFI_BIN_DIR)/vnexosriscv64.efi
+$(eval $(call HYPER_BOOT_COMPILE_TEMPLATE,\
 	$(BOOT_SRC_DIR),\
 	$(BOOT_BUILD_DIR),\
-	$(BOOT_FLAGS),\
+	$(CXX_BASE_FLAGS),\
 	$(BOOT_ASMFLAGS),\
-	-I$(BOOT_SHARED_DIR) -D__EFI_ALLOWED))
+	-I$(BOOT_SHARED_DIR) -D__EFI_ALLOWED -I$(BOOT_INC_DIR)))
+$(eval $(call EFI_LINK_TEMPLATE,\
+	$(EFI_BIN_DIR),\
+	$(X86_64_OBJS),\
+	$(AARCH64_OBJS),\
+	$(RISCV64_OBJS),vnexos_main,\
+	$(BOOT_LINKER_SCRIPT)))
 
 .PHONY: all clean
 all: \
-	$(BOOT_EFI_BIN)
+	$(BOOT_EFI_BINS)
 	@echo "$(MSG_VNEXOS) Hoàn tất biên dịch $(COLOR_AQUA)Bộ nạp khởi động VNExos$(MODE_RESET)."
-
-# Với riscv64, quy trình build EFI gồm 2 bước:
-# 1. ld.lld + tập lệnh liên kết -> ELF thực thi (mã bắt đầu từ Địa chỉ ảo=0x1000)
-# 2. tools/elf2efi_riscv64.py -> Ứng dụng EFI chuẩn PE32+ đúng đặc tả UEFI
-#    (có section .reloc rỗng bắt buộc để UEFI loader không từ chối image)
-$(BOOT_EFI_BIN): $(OBJS)
-	@mkdir -p $(EFI_BIN_DIR) $(BOOT_BUILD_DIR)
-ifeq ($(ARCH),riscv64)
-	@echo "$(MSG_LD) Đang liên kết ELF trung gian: $(BOOT_ELF_SO)"
-	@$(BOOT_LD) $(BOOT_LDFLAGS) -T$(BOOT_LINKER_SCRIPT) -o $(BOOT_ELF_SO) $^
-	@echo "$(MSG_LD) Đang chuyển đổi ELF -> PE/UEFI: $@"
-	@$(RISCV_ELF2EFI) $(BOOT_ELF_SO) $@
-else
-	@echo "$(MSG_LD) Đang liên kết thành tệp EFI khởi động: $@"
-	@$(BOOT_LD) $(BOOT_LDFLAGS) -o $@ $^
-endif
-	@echo "$(MSG_LD) Đã liên kết thành công thành bộ nạp khởi động!"
-	@boreas -sign -s $(KEY_FILE) $(PUB_FILE) $@ $@
-	@sbsign --key $(CERT_DIR)/vnexos_db.key --cert $(CERT_DIR)/vnexos_db.crt --output $@ $@
 
 clean:
 	@rm -rf $(BOOT_BUILD_DIR)

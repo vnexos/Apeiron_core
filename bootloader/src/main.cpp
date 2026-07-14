@@ -15,7 +15,7 @@
 #include <post_quantum/sign.hpp>
 #include <string.hpp>
 
-#include "graphics.hpp"
+#include <graphics.hpp>
 
 #if defined(__x86_64__)
 #define BOOT_FILE EFI_TEXT("\\EFI\\BOOT\\BOOTX64.EFI")
@@ -47,6 +47,7 @@ struct LoadingBarStatus
 
 void EFI_API drawProgressBar(EFI_EVENT evt, void* context)
 {
+  (void)evt;
   LoadingBarStatus*             status = (LoadingBarStatus*)context;
   EFI_GRAPHICS_OUTPUT_BLT_PIXEL track  = {
       128, 128, 128, 0};

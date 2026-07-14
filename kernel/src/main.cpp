@@ -11,7 +11,15 @@
  */
 #include <cpu.hpp>
 
-extern "C" void kernel_main()
+int* a = (int*)0xffab;
+int* b = (int*)0xccdd;
+
+int add(int a, int b)
+{
+  return a + b;
+}
+
+void entry()
 {
   while (true)
   {

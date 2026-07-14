@@ -10,9 +10,8 @@
  * @brief Tệp triển khai của các hàm vẽ đồ họa
  */
 
-#include "graphics.hpp"
-
 #include <efilib.hpp>
+#include <graphics.hpp>
 
 // Căn bậc 2 bằng thuật toán Babylon/Newton
 static uint32_t sqrt_algo(uint32_t value)
