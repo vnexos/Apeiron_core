@@ -17,8 +17,6 @@ BOOT_DIR       := $(INTERNAL_DIR)/bootloader
 BOOT_SRC_DIR   := $(BOOT_DIR)/src
 BOOT_INC_DIR   := $(BOOT_DIR)/inc
 BOOT_BUILD_DIR := $(INTERNAL_BUILD_DIR)/bootloader
-# Tệp ELF trung gian (chỉ dùng cho riscv64 trước khi chuyển sang PE)
-BOOT_ELF_SO    := $(BOOT_BUILD_DIR)/boot.elf
 SRCS           := $(shell find $(BOOT_SRC_DIR) -type f \( -name "*.cpp" -o -name "*.s" \))
 X86_64_OBJS    := $(patsubst $(BOOT_SRC_DIR)/%.cpp,$(BOOT_BUILD_DIR)/%.x86_64.o,$(filter %.cpp,$(SRCS))) \
                   $(patsubst $(BOOT_SRC_DIR)/%.s,$(BOOT_BUILD_DIR)/%.x86_64.s.o,$(filter %.s,$(SRCS))) \
