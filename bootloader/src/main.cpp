@@ -223,10 +223,23 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
   /* Đọc khóa công khai vào bộ nhớ */
   uint8_t* keyBuffer;
   uint64_t keySize;
-  status = loadFile(EFI_TEXT("\\EFI\\BOOT\\root.crt"), &keyBuffer, &keySize);
+  status = loadFile(EFI_TEXT("\\certs\\root.crt"), &keyBuffer, &keySize);
   if (EFI_ERROR(status))
   {
-    printf("LOI: Khong the doc tep: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\EFI\\BOOT\\root.crt"));
+    printf("LOI: Khong the doc tep: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\certs\\root.crt"));
+    waitForKey();
+    printf("\n");
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return status;
+  }
+
+  /* Đọc khóa phụ vào bộ nhớ */
+  uint8_t* secondKeyBuffer;
+  uint64_t secondKeySize;
+  status = loadFile(EFI_TEXT("\\certs\\open.crt"), &secondKeyBuffer, &secondKeySize);
+  if (EFI_ERROR(status))
+  {
+    printf("LOI: Khong the doc tep: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\certs\\open.crt"));
     waitForKey();
     printf("\n");
     clearTimer(bs, &loadingStatus, timerEvent);
@@ -247,7 +260,14 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
   }
 
   /* Tiến hành xác thực ngược chữ ký */
-  if (!Sign::verifyEfiFileSignature(bootBuffer, bootSize, keyBuffer, keySize))
+  bool bOriginalBoot;
+  if (Sign::verifyEfiFileSignature(bootBuffer, bootSize, keyBuffer, keySize))
+  {
+    bOriginalBoot = true;
+  } else if (Sign::verifyEfiFileSignature(bootBuffer, bootSize, secondKeyBuffer, secondKeySize))
+  {
+    bOriginalBoot = false;
+  } else
   {
     printf("LOI: Chu ky khong hop le: %ws\nNhan phim bat ky de thoat...", BOOT_FILE);
     waitForKey();
@@ -255,6 +275,11 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
     clearTimer(bs, &loadingStatus, timerEvent);
     return status;
   }
+
+  if (bOriginalBoot)
+    printf("Nhan goc!"); // Nhân gốc
+  else
+    printf("Nhan mo!");  // Nhân mở
 
   waitForKey();
 
