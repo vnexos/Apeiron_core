@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2026 VNExos Inc.
+ * Copyright (c) 2026 VNExos
  * Bảo lưu mọi quyền.
  *
  * Được cấp phép theo Giấy phép Độc quyền.
