@@ -277,9 +277,9 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
   }
 
   if (bOriginalBoot)
-    printf("Nhan goc!"); // Nhân gốc
+    printf("Nhan goc!\n"); // Nhân gốc
   else
-    printf("Nhan mo!");  // Nhân mở
+    printf("Nhan mo!\n");  // Nhân mở
 
   waitForKey();
 

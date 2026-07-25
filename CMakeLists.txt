@@ -13,3 +13,4 @@ set(BOOT_LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/linker_boot_riscv64.ld")
 set(KERN_LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/linker_kern.ld")
 
 add_subdirectory(bootloader)
+add_subdirectory(kernel)

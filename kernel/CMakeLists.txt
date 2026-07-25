@@ -6,24 +6,27 @@
 # Xem tệp LICENSE tại thư mục `internal` để biết thêm chi
 # tiết.
 #
-# Quản lý các tệp mã nguồn trong Bộ nạp khởi động chính
+# Quản lý các tệp mã nguồn Trong nhân lõi
 # =========================================================
 
-file(GLOB_RECURSE BOOT_SOURCES CONFIGURE_DEPENDS
+set(BIN_LIST "")
+
+file(GLOB_RECURSE KERNEL_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/*.asm
 )
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/inc")
 
 foreach(ARCH IN LISTS VNExos_ARCHS)
-    set(FUNC_NAME "VNExosBuildEfi_${ARCH}")
+    set(FUNC_NAME "VNExosBuildBinMap_${ARCH}")
     if(COMMAND ${FUNC_NAME})
-        if(ARCH STREQUAL "riscv64")
-            set(LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/linker_grub_riscv64.ld")
-            cmake_language(CALL ${FUNC_NAME} "vnexos" "vnexos_db" "root" "${BOOT_SOURCES}" TRUE "${BOOT_LINKER_SCRIPT}")
-        else()
-            cmake_language(CALL ${FUNC_NAME} "vnexos" "vnexos_db" "root" "vnexos_main" "${BOOT_SOURCES}" TRUE)
-        endif()
+        cmake_language(CALL ${FUNC_NAME} "kernel" "root" "${KERN_LINKER_SCRIPT}" "${KERNEL_SOURCES}")
         set_property(GLOBAL APPEND PROPERTY VNExos_ALL_TARGET ${TARGET_NAME})
+
+        list(APPEND BIN_LIST ${RESULT_FILE})
     endif()
 endforeach()
+
+message("---- ${BIN_LIST}")
