@@ -12,6 +12,7 @@ SECTIONS
 {
     /* Đặt địa chỉ gốc ảo là 0 để tiện tính toán */
     . = 0x0;
+    _image_start = .;
 
     /* KHỐI CODE: Làm tròn theo trang 4KB */
     .text : ALIGN(0x1000) {
@@ -48,8 +49,19 @@ SECTIONS
         KEEP(*(.fini_array))
         KEEP(*(.fini_array.*))
         _fini_array_end = .;
+
+        ALIGN(8);
+        KEEP(*(.vnexos_usx_import.ptr))
         
         _data_end = .;
+    }
+
+    .vnexos_usx_import : ALIGN(0x1000) {
+        _usx_import_start = .;
+        *(.vnexos_usx_import)
+        *(.vnexos_usx_import.str)
+        *(.vnexos_usx_import.desc)
+        _usx_import_end = .;
     }
 
     /* KHỐI DỮ LIỆU ẢO: Làm tròn theo trang 4KB */
@@ -66,6 +78,7 @@ SECTIONS
         *(.eh_frame*)
 
         /* QUÉT SẠCH RÁC DYNAMIC CỦA -fPIE: */
+        *(.rela*)
         *(.interp)
         *(.dynamic)
         *(.dynsym)

@@ -2,4 +2,5 @@
 -I./inc
 -std=c++23
 -Wall -Wextra
+-Wno-extern-initializer
 -D__EFI_ALLOWED

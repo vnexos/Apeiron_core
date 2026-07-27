@@ -10,17 +10,21 @@
  * @brief Tệp khởi đầu của Nhân lõi
  */
 #include <cpu.hpp>
+#include <usx.h>
 
-int* a = (int*)0xffab;
-int* b = (int*)0xccdd;
+USX_EXPORT_DATA int* a = (int*)0xffab;
+USX_EXPORT_DATA int* b = (int*)0xccdd;
 
-int add(int a, int b)
+USX_EXPORT_FUNC int add(int a, int b)
 {
   return a + b;
 }
 
+USX_IMPORT("libahihi", int, sub, int, int);
+
 void entry()
 {
+
   while (true)
   {
     cpu_halt();
