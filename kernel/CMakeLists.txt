@@ -45,6 +45,7 @@ add_custom_command(
         --map ${MAP_LIST} 
         --arch ${VNExos_ARCHS}
         --out ${FINAL_BIN}
+        --version 0.1
     COMMENT "[ VNExos ] Đã đóng gói Nhân lõi thành tệp: ${FINAL_BIN}"
     VERBATIM
 )
