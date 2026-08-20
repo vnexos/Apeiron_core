@@ -6,8 +6,6 @@
  * Xem tệp LICENSE tại thư mục `internal` để biết thêm chi
  * tiết.
  */
-OUTPUT_FORMAT(binary)
-
 SECTIONS
 {
     /* Đặt địa chỉ gốc ảo là 0 để tiện tính toán */
@@ -56,20 +54,20 @@ SECTIONS
         _data_end = .;
     }
 
-    /* KHỐI DỮ LIỆU ẢO: Làm tròn theo trang 4KB */
-    .bss : ALIGN(0x1000) {
-        _bss_start = .;
-        *(.bss .bss.*)
-        *(COMMON)
-        _bss_end = .;
-    }
-
     .vnexos_usx_import : ALIGN(0x1000) {
         _usx_import_start = .;
         *(.vnexos_usx_import.str)
         *(.vnexos_usx_import.desc)
         *(.vnexos_usx_import.sym)
         _usx_import_end = .;
+    }
+
+    /* KHỐI DỮ LIỆU ẢO: Làm tròn theo trang 4KB */
+    .bss : ALIGN(0x1000) {
+        _bss_start = .;
+        *(.bss .bss.*)
+        *(COMMON)
+        _bss_end = .;
     }
 
     /DISCARD/ : { 
