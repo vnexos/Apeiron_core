@@ -150,7 +150,7 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
       EFI_OPEN_PROTOCOL_GET_PROTOCOL);
   if (EFI_ERROR(status))
   {
-    printf("LOI: Khong the mo giao thuc anh da tai\nNhan phim bat ky de thoat...");
+    printf("LOI [1]: Khong the mo giao thuc anh da tai\nNhan phim bat ky de thoat...");
     waitForKey();
     printf("\n");
     return status;
@@ -158,7 +158,7 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
 
   if (lip->LoadOptionsSize != sizeof(ApeironCommonParameters))
   {
-    printf("LOI: Tham so truyen vao khong dung (mong doi: %d byte, nhung co: %d byte)\n\
+    printf("LOI [2]: Tham so truyen vao khong dung (mong doi: %d byte, nhung co: %d byte)\n\
       Nhan phim bat ky de thoat...",
            sizeof(ApeironCommonParameters), lip->LoadOptionsSize);
     waitForKey();
@@ -226,7 +226,7 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
   status = loadFile(EFI_TEXT("\\certs\\root.crt"), &keyBuffer, &keySize);
   if (EFI_ERROR(status))
   {
-    printf("LOI: Khong the doc tep: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\certs\\root.crt"));
+    printf("LOI [3]: Khong the doc tep: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\certs\\root.crt"));
     waitForKey();
     printf("\n");
     clearTimer(bs, &loadingStatus, timerEvent);
@@ -239,7 +239,7 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
   status = loadFile(EFI_TEXT("\\certs\\open.crt"), &secondKeyBuffer, &secondKeySize);
   if (EFI_ERROR(status))
   {
-    printf("LOI: Khong the doc tep: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\certs\\open.crt"));
+    printf("LOI [4]: Khong the doc tep: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\certs\\open.crt"));
     waitForKey();
     printf("\n");
     clearTimer(bs, &loadingStatus, timerEvent);
@@ -252,7 +252,7 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
   status = loadFile(BOOT_FILE, &bootBuffer, &bootSize);
   if (EFI_ERROR(status))
   {
-    printf("LOI: Khong the doc tep: %ws\nNhan phim bat ky de thoat...", BOOT_FILE);
+    printf("LOI [5]: Khong the doc tep: %ws\nNhan phim bat ky de thoat...", BOOT_FILE);
     waitForKey();
     printf("\n");
     clearTimer(bs, &loadingStatus, timerEvent);
@@ -269,17 +269,17 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
     bOriginalBoot = false;
   } else
   {
-    printf("LOI: Chu ky khong hop le: %ws\nNhan phim bat ky de thoat...", BOOT_FILE);
+    printf("LOI [6]: Chu ky khong hop le: %ws\nNhan phim bat ky de thoat...", BOOT_FILE);
     waitForKey();
     printf("\n");
     clearTimer(bs, &loadingStatus, timerEvent);
     return status;
   }
 
-  if (bOriginalBoot)
-    printf("Nhan goc!\n"); // Nhân gốc
-  else
-    printf("Nhan mo!\n");  // Nhân mở
+  // if (bOriginalBoot)
+  //   printf("Nhan goc!\n"); // Nhân gốc
+  // else
+  //   printf("Nhan mo!\n");  // Nhân mở
 
   waitForKey();
 
