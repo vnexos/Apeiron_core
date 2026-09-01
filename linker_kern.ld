@@ -6,8 +6,6 @@
  * Xem tệp LICENSE tại thư mục `internal` để biết thêm chi
  * tiết.
  */
-OUTPUT_FORMAT(binary)
-
 SECTIONS
 {
     /* Đặt địa chỉ gốc ảo là 0 để tiện tính toán */
@@ -54,6 +52,14 @@ SECTIONS
         KEEP(*(.vnexos_usx_import.ptr))
         
         _data_end = .;
+    }
+
+    .vnexos_usx_import : ALIGN(0x1000) {
+        _usx_import_start = .;
+        *(.vnexos_usx_import.str)
+        *(.vnexos_usx_import.desc)
+        *(.vnexos_usx_import.sym)
+        _usx_import_end = .;
     }
 
     /* KHỐI DỮ LIỆU ẢO: Làm tròn theo trang 4KB */
