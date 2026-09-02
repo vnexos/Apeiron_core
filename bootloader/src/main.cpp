@@ -16,6 +16,7 @@
 #include <string.hpp>
 
 #include <graphics.hpp>
+#include <mm.hpp>
 
 #if defined(__x86_64__)
 #define BOOT_FILE EFI_TEXT("\\EFI\\BOOT\\BOOTX64.EFI")
@@ -276,10 +277,17 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
     return status;
   }
 
+  (void)bOriginalBoot;
   // if (bOriginalBoot)
   //   printf("Nhan goc!\n"); // Nhân gốc
   // else
   //   printf("Nhan mo!\n");  // Nhân mở
+
+  if (!initMemoryManagement(bs))
+  {
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return -1;
+  }
 
   waitForKey();
 
