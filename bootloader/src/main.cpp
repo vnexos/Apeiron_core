@@ -12,6 +12,9 @@
 #include <common.hpp>
 #include <cpu.hpp>
 #include <efilib.hpp>
+#include <post_quantum/crypto/aes256.hpp>
+#include <post_quantum/crypto/sha3.hpp>
+#include <post_quantum/kem/kyber.hpp>
 #include <post_quantum/sign.hpp>
 #include <string.hpp>
 
@@ -45,6 +48,20 @@ struct LoadingBarStatus
   EFI_GRAPHICS_OUTPUT_BLT_PIXEL* buffer;
   bool                           bStopFlag = false;
 };
+
+typedef struct __attribute__((packed))
+{
+  uint8_t  hash[32];
+  uint16_t fileName[256];
+} FileHash;
+
+// Xóa sạch vùng nhớ nhạy cảm
+inline void secureZeroize(void* p, uint64_t n)
+{
+  volatile uint8_t* vp = (volatile uint8_t*)p;
+  while (n--)
+    *vp++ = 0;
+}
 
 void EFI_API drawProgressBar(EFI_EVENT evt, void* context)
 {
@@ -130,6 +147,201 @@ void clearTimer(EFI_BOOT_SERVICES* bs, LoadingBarStatus* loadingStatus, EFI_EVEN
     }
     bs->SetTimer(timerEvent, TimerCancel, 0);
   }
+}
+
+EFI_STATUS hashFilesInFolder(EFI_BOOT_SERVICES* bs, EFI_FILE_PROTOCOL* dirHandle, const uint16_t* prefix, uint8_t* hash)
+{
+  EFI_STATUS     status;
+  uint64_t       bufferSize;
+  uint64_t       prefixSize;
+  EFI_FILE_INFO* fileInfo;
+
+  uint64_t capacity = 1;
+  uint64_t count    = 0;
+
+  if (dirHandle == nullptr || prefix == nullptr || hash == nullptr)
+  {
+    printf("LOI: Tham so dau vao khong hop le.");
+    return 1;
+  }
+
+  prefixSize = wstrlen(prefix);
+  bufferSize = sizeof(EFI_FILE_INFO) + 256 * sizeof(uint16_t);
+  status     = bs->AllocatePool(EfiLoaderData, bufferSize, (void**)&fileInfo);
+  if (EFI_ERROR(status))
+  {
+    printf("LOI: Cap phat that bai.");
+    return status;
+  }
+
+  // Khởi tạo mảng thông tin hash
+  FileHash* hashInfoBuffer;
+  status = bs->AllocatePool(EfiLoaderData, capacity * sizeof(FileHash), (void**)&hashInfoBuffer);
+  if (EFI_ERROR(status))
+  {
+    printf("LOI: Cap phat that bai.");
+    bs->FreePool(fileInfo);
+    return status;
+  }
+
+  dirHandle->SetPosition(dirHandle, 0);
+
+  while (true)
+  {
+    uint64_t readSize = bufferSize;
+    status            = dirHandle->Read(dirHandle, &readSize, fileInfo);
+
+    if (EFI_ERROR(status) || readSize == 0)
+    {
+      break;
+    }
+
+    // Bỏ qua . và ..
+    if (wstrcmp(fileInfo->FileName, (uint16_t*)L".") == 0 || wstrcmp(fileInfo->FileName, (uint16_t*)L"..") == 0)
+    {
+      continue;
+    }
+
+    // Bỏ qua thư mục con
+    if (fileInfo->Attribute & EFI_FILE_DIRECTORY)
+    {
+      continue;
+    }
+
+    // Kiểm tra tiền tố
+    bool match = false;
+    if (wstrlen(fileInfo->FileName) >= prefixSize)
+      match = wstrcmp(fileInfo->FileName, prefix, prefixSize) == 0;
+
+    if (match)
+    {
+      if (count >= capacity)
+      {
+        uint64_t  newCapacity = capacity * 2;
+        FileHash* newHashInfoBuffer;
+        status = bs->AllocatePool(EfiLoaderData, newCapacity * sizeof(FileHash), (void**)&newHashInfoBuffer);
+        if (EFI_ERROR(status))
+          break;
+
+        memcpy(newHashInfoBuffer, hashInfoBuffer, capacity * sizeof(FileHash));
+        bs->FreePool(hashInfoBuffer);
+
+        capacity       = newCapacity;
+        hashInfoBuffer = newHashInfoBuffer;
+      }
+
+      EFI_FILE_PROTOCOL* fileHandle;
+      status = dirHandle->Open(dirHandle, &fileHandle, (uint16_t*)fileInfo->FileName, EFI_FILE_MODE_READ, 0);
+      if (EFI_ERROR(status))
+        break;
+
+      // Cấp phát kích thước bằng đúng kích thước tệp
+      uint64_t fileSize = fileInfo->FileSize;
+      uint8_t* fileBuffer;
+
+      uint64_t fileNameLen = wstrlen(fileInfo->FileName) + 1;
+      memcpy(hashInfoBuffer[count].fileName, fileInfo->FileName, fileNameLen * sizeof(uint16_t));
+
+      printf("%d - %ws\n", fileNameLen, hashInfoBuffer[count].fileName);
+
+      if (fileSize > 0)
+      {
+        status = bs->AllocatePool(EfiLoaderData, fileSize, (void**)&fileBuffer);
+        if (EFI_ERROR(status))
+        {
+          fileHandle->Close(fileHandle);
+          break;
+        }
+
+        // Đọc tệp vào bộ nhớ
+        status = fileHandle->Read(fileHandle, &fileSize, fileBuffer);
+        fileHandle->Close(fileHandle);
+        if (EFI_ERROR(status))
+        {
+          bs->FreePool(fileBuffer);
+          break;
+        }
+
+        // Băm tệp vào bộ nhớ
+        Crypto::VNExos::sha256(hashInfoBuffer[count].hash, fileBuffer, fileSize);
+        bs->FreePool(fileBuffer);
+      } else
+      {
+        fileHandle->Close(fileHandle);
+        Crypto::VNExos::sha256(hashInfoBuffer[count].hash, (uint8_t*)"", 0);
+      }
+
+      ++count;
+    }
+  }
+
+  bs->FreePool(fileInfo);
+
+  // Trong trường hợp ko có tệp nào
+  if (count == 0)
+  {
+    bs->FreePool(hashInfoBuffer);
+    Crypto::VNExos::sha256(hash, (uint8_t*)"", 0);
+    return EFI_SUCCESS;
+  }
+
+  // Khởi tạo mảng nối các mã băm của các tệp
+  uint8_t* hashBuffer;
+  status = bs->AllocatePool(EfiLoaderData, count * 32, (void**)&hashBuffer);
+  if (EFI_ERROR(status))
+  {
+    printf("LOI: Cap phat that bai.");
+    bs->FreePool(hashInfoBuffer);
+    return status;
+  }
+
+  // Sắp xếp các bảng băm theo thứ tự của tên
+  FileHash tmpHash;
+  for (uint64_t i = 0; i < count - 1; ++i)
+  {
+    for (uint64_t j = i + 1; j < count; ++j)
+    {
+      if (wstrcmp(hashInfoBuffer[i].fileName, hashInfoBuffer[j].fileName) > 0)
+      {
+        memcpy(&tmpHash, &hashInfoBuffer[i], sizeof(FileHash));
+        memcpy(&hashInfoBuffer[i], &hashInfoBuffer[j], sizeof(FileHash));
+        memcpy(&hashInfoBuffer[j], &tmpHash, sizeof(FileHash));
+      }
+    }
+  }
+
+  // Đẩy các mã băm ra bộ đệm
+  for (uint64_t i = 0; i < count; ++i)
+  {
+    memcpy(hashBuffer + i * 32, hashInfoBuffer[i].hash, 32);
+  }
+
+  bs->FreePool(hashInfoBuffer);
+
+  // Băm bộ đệm một lần nữa
+  Crypto::VNExos::sha256(hash, hashBuffer, count * 32);
+  bs->FreePool(hashBuffer);
+
+  return status;
+}
+
+uint64_t setupPaging(EFI_MEMORY_DESCRIPTOR* map, uint64_t mapSize, uint64_t descriptorSize)
+{
+  PageTable* rootTable = allocateZeroPageTable();
+
+  // Nửa trên (kernel-half)
+  {
+    PageTable* upperTable   = allocateZeroPageTable();
+    rootTable->entries[256] = makePte((uint64_t)upperTable, PAGE_PRESENT | PAGE_NONLEAF);
+
+    PageTable* middleTable = allocateZeroPageTable();
+    upperTable->entries[0] = makePte((uint64_t)middleTable, PAGE_PRESENT | PAGE_NONLEAF);
+
+    PageTable* lowerTable   = allocateZeroPageTable();
+    middleTable->entries[0] = makePte((uint64_t)lowerTable, PAGE_PRESENT | PAGE_NONLEAF);
+  }
+
+  return (uint64_t)rootTable;
 }
 
 // TODO: Khi làm memory map thì kiếm phân vùng lớn nhất rồi đẩy rác vào cuối và lùi dần từng trang như stack để sau này dễ bề quản lý
@@ -276,6 +488,136 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
     clearTimer(bs, &loadingStatus, timerEvent);
     return status;
   }
+  bs->FreePool(bootBuffer);
+  bs->FreePool(secondKeyBuffer);
+
+  // Lấy hash của các tệp
+  EFI_FILE_PROTOCOL* dirHandle;
+  uint8_t*           hash;
+  status = loadDir(EFI_TEXT("\\EFI\\BOOT"), &dirHandle);
+  if (EFI_ERROR(status))
+  {
+    printf("LOI [7]: Khong the doc thu muc: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\EFI\\BOOT"));
+    waitForKey();
+    printf("\n");
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return status;
+  }
+
+  // Khởi tạo mảng băm chung
+  status = bs->AllocatePool(EfiLoaderData, 3 * 32, (void**)&hash);
+  if (EFI_ERROR(status))
+  {
+    printf("LOI [8]: Cap phat that bai: hash\nNhan phim bat ky de thoat...");
+    waitForKey();
+    printf("\n");
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return status;
+  }
+
+  // Băm toàn bộ tệp BOOT: SHAV256(SHAV256(BOOTX64.EFI) || ...)
+  status = hashFilesInFolder(bs, dirHandle, EFI_TEXT("BOOT"), hash);
+  if (EFI_ERROR(status))
+  {
+    printf("LOI [9]: Khong the bam cac tep BOOT* trong thu muc: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\EFI\\BOOT"));
+    waitForKey();
+    printf("\n");
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return status;
+  }
+
+  // Băm toàn bộ tệp vnexos: SHAV256(SHAV256(vnexosx64.efi) || ...)
+  status = hashFilesInFolder(bs, dirHandle, EFI_TEXT("vnexos"), hash + 32);
+  if (EFI_ERROR(status))
+  {
+    printf("LOI [10]: Khong the bam cac tep vnexos* trong thu muc: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\EFI\\BOOT"));
+    waitForKey();
+    printf("\n");
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return status;
+  }
+
+  // Băm tệp nhân lõi
+  uint8_t* kernelBuffer;
+  uint64_t kernelSize;
+  status = loadFile(EFI_TEXT("\\apeiron.kern"), &kernelBuffer, &kernelSize);
+  if (EFI_ERROR(status))
+  {
+    printf("LOI [11]: Khong the doc tep: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\apeiron.kern"));
+    waitForKey();
+    printf("\n");
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return status;
+  }
+
+  USXSecurity* secTable = Sign::verifyUsxFileSignature(kernelBuffer, kernelSize, keyBuffer, keySize);
+  if (!secTable)
+  {
+    printf("LOI [12]: Tep USX khong hop le: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\apeiron.kern"));
+    waitForKey();
+    printf("\n");
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return status;
+  }
+
+  printf("0x%x - 0x%d\n", secTable->KEMOffset, secTable->KEMSize);
+
+  Crypto::VNExos::sha256(hash + 64, kernelBuffer, kernelSize);
+
+  Crypto::VNExos::sha256(hash + 32, hash, 96);
+  Crypto::VNExos::sha256(hash, keyBuffer, keySize); // Băm tệp khóa chính
+
+  Crypto::VNExos::sha256(hash, hash, 64);           // Băm tất cả vào một khóa 32 Byte
+
+  // Đọc và xác minh tệp khóa bí mật
+  uint8_t* kyberKeyBuffer;
+  uint64_t kyberKeySize;
+  status = loadFile(EFI_TEXT("\\key.sec"), &kyberKeyBuffer, &kyberKeySize);
+  if (EFI_ERROR(status))
+  {
+    printf("LOI [13]: Khong the doc tep: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\key.sec"));
+    waitForKey();
+    printf("\n");
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return status;
+  }
+
+  uint8_t magicByte[8] = {0, 0, 0, 'S', 'E', 'A', 'N', 'V'};
+  uint8_t i;
+  for (i = 0; i < 8; ++i)
+  {
+    if (kyberKeyBuffer[kyberKeySize - 8 + i] != magicByte[i])
+      break;
+  }
+
+  if (i != 8)
+  {
+    printf("LOI [14]: Tep khoa bi mat khong hop le: %ws\nNhan phim bat ky de thoat...", EFI_TEXT("\\key.sec"));
+    waitForKey();
+    printf("\n");
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return status;
+  }
+
+  // Giải mã khóa bí mật
+  uint8_t* iv = &kyberKeyBuffer[kyberKeySize - 24];
+
+  Crypto::AES256::AES256Context ctx;
+  Crypto::AES256::init(&ctx, hash);
+  Crypto::AES256::counter(&ctx, iv, kyberKeyBuffer, kyberKeyBuffer, kyberKeySize - 24);
+
+  // Xóa dấu vết ngay sau khi dùng xong
+  secureZeroize(hash, 96);
+  bs->FreePool(hash);
+
+  // Mở gói khóa
+  uint8_t sharedSecret[32];
+  Kyber::decapsulate(sharedSecret, kernelBuffer + secTable->KEMOffset, kyberKeyBuffer);
+  secureZeroize(kyberKeyBuffer, kyberKeySize);
+
+  for (uint8_t i = 0; i < 32; ++i)
+    printf("%2x", sharedSecret[i]);
+  printf("\n");
 
   (void)bOriginalBoot;
   // if (bOriginalBoot)
@@ -283,11 +625,15 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
   // else
   //   printf("Nhan mo!\n");  // Nhân mở
 
-  if (!initMemoryManagement(bs))
-  {
-    clearTimer(bs, &loadingStatus, timerEvent);
-    return -1;
-  }
+  EFI_MEMORY_DESCRIPTOR* map;
+  uint64_t               mapSize;
+  uint64_t               descriptorSize;
+
+  // if (!initMemoryManagement(bs, &map, &mapSize, &descriptorSize))
+  // {
+  //   clearTimer(bs, &loadingStatus, timerEvent);
+  //   return -1;
+  // }
 
   waitForKey();
 

@@ -9,7 +9,7 @@
 # Quản lý các tệp mã nguồn Trong nhân lõi
 # =========================================================
 
-set(FINAL_BIN "${VNExos_SYSROOT_KERN_DIR}/apeiron.kern")
+set(FINAL_BIN "${VNExos_SYSROOT_KERN_DIR}/${VNExos_SYSROOT_KERN_FILE}")
 set(RESULT_LIST "")
 set(FINAL_TARGET "VNExosKernelAll")
 
