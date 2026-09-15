@@ -15,6 +15,7 @@
 #include <post_quantum/crypto/aes256.hpp>
 #include <post_quantum/crypto/sha3.hpp>
 #include <post_quantum/kem/kyber.hpp>
+#include <post_quantum/sig/dilithium.hpp>
 #include <post_quantum/sign.hpp>
 #include <string.hpp>
 
@@ -242,8 +243,6 @@ EFI_STATUS hashFilesInFolder(EFI_BOOT_SERVICES* bs, EFI_FILE_PROTOCOL* dirHandle
       uint64_t fileNameLen = wstrlen(fileInfo->FileName) + 1;
       memcpy(hashInfoBuffer[count].fileName, fileInfo->FileName, fileNameLen * sizeof(uint16_t));
 
-      printf("%d - %ws\n", fileNameLen, hashInfoBuffer[count].fileName);
-
       if (fileSize > 0)
       {
         status = bs->AllocatePool(EfiLoaderData, fileSize, (void**)&fileBuffer);
@@ -340,6 +339,8 @@ uint64_t setupPaging(EFI_MEMORY_DESCRIPTOR* map, uint64_t mapSize, uint64_t desc
     PageTable* lowerTable   = allocateZeroPageTable();
     middleTable->entries[0] = makePte((uint64_t)lowerTable, PAGE_PRESENT | PAGE_NONLEAF);
   }
+
+  // Nửa dưới (EFI-half)
 
   return (uint64_t)rootTable;
 }
@@ -473,13 +474,16 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
   }
 
   /* Tiến hành xác thực ngược chữ ký */
-  bool bOriginalBoot;
+  uint8_t              domainToken[32];
+  Sign::BootTrustLevel trustLevel = Sign::BOOT_TRUST_UNKNOWN;
   if (Sign::verifyEfiFileSignature(bootBuffer, bootSize, keyBuffer, keySize))
   {
-    bOriginalBoot = true;
+    Crypto::VNExos::sha256(domainToken, keyBuffer, DILITHIUM_PUBLICKEYBYTES);
+    trustLevel = Sign::BOOT_TRUST_OFFICIAL;
   } else if (Sign::verifyEfiFileSignature(bootBuffer, bootSize, secondKeyBuffer, secondKeySize))
   {
-    bOriginalBoot = false;
+    Crypto::VNExos::sha256(domainToken, secondKeyBuffer, DILITHIUM_PUBLICKEYBYTES);
+    trustLevel = Sign::BOOT_TRUST_DEVELOPER;
   } else
   {
     printf("LOI [6]: Chu ky khong hop le: %ws\nNhan phim bat ky de thoat...", BOOT_FILE);
@@ -560,8 +564,6 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
     return status;
   }
 
-  printf("0x%x - 0x%d\n", secTable->KEMOffset, secTable->KEMSize);
-
   Crypto::VNExos::sha256(hash + 64, kernelBuffer, kernelSize);
 
   Crypto::VNExos::sha256(hash + 32, hash, 96);
@@ -615,25 +617,33 @@ vnexos_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
   Kyber::decapsulate(sharedSecret, kernelBuffer + secTable->KEMOffset, kyberKeyBuffer);
   secureZeroize(kyberKeyBuffer, kyberKeySize);
 
-  for (uint8_t i = 0; i < 32; ++i)
-    printf("%2x", sharedSecret[i]);
-  printf("\n");
-
-  (void)bOriginalBoot;
-  // if (bOriginalBoot)
-  //   printf("Nhan goc!\n"); // Nhân gốc
-  // else
-  //   printf("Nhan mo!\n");  // Nhân mở
+  if ((trustLevel ^ Sign::BOOT_TRUST_OFFICIAL) == 0)
+  {
+    // printf("Nhan goc!\n"); // Nhân gốc
+  } else if ((trustLevel ^ Sign::BOOT_TRUST_DEVELOPER) == 0)
+  {
+    // printf("Nhan mo!\n"); // Nhân mở`
+  } else
+  {
+    printf("LOI [15]: Luong khoi dong da bi can thiep: BOOT_TRUST_UNKNOWN\nNhan phim bat ky de thoat...");
+    waitForKey();
+    printf("\n");
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return status;
+  }
 
   EFI_MEMORY_DESCRIPTOR* map;
   uint64_t               mapSize;
   uint64_t               descriptorSize;
 
-  // if (!initMemoryManagement(bs, &map, &mapSize, &descriptorSize))
-  // {
-  //   clearTimer(bs, &loadingStatus, timerEvent);
-  //   return -1;
-  // }
+  if (!initMemoryManagement(bs, &map, &mapSize, &descriptorSize))
+  {
+    clearTimer(bs, &loadingStatus, timerEvent);
+    return -1;
+  }
+
+  uint64_t test = toVirtualAddress(256, 0, 0, 0);
+  printf("0x%16x\n", test);
 
   waitForKey();
 

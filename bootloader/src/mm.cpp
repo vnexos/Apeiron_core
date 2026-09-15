@@ -15,6 +15,16 @@
 #include <stdint.h>
 #include <string.hpp>
 
+#if defined(__x86_64__)
+#include <hal/mmx64.hpp>
+#elif defined(__aarch64__)
+#include <hal/mmaa64.hpp>
+#elif defined(__riscv)
+#include <hal/mmriscv64.hpp>
+#else
+#error "Dòng vi xử lý này chưa được VNExos hỗ trợ!"
+#endif
+
 using namespace EFI;
 
 /* TRANG ĐẦU VÀ TRANG CUỐI CỦA VÙNG NHỚ LỚN NHẤT */
@@ -22,6 +32,7 @@ uint64_t startMaxRegion    = 0;
 uint64_t ptrMaxRegion      = 0;
 uint64_t endMaxRegion      = 0;
 uint64_t start2ndMaxRegion = 0;
+uint64_t ptr2ndMaxRegion   = 0;
 uint64_t end2ndMaxRegion   = 0;
 
 bool initMemoryManagement(EFI_BOOT_SERVICES* BootServices, EFI_MEMORY_DESCRIPTOR** _map, uint64_t* _mapSize, uint64_t* _descriptorSize)
@@ -74,7 +85,6 @@ bool initMemoryManagement(EFI_BOOT_SERVICES* BootServices, EFI_MEMORY_DESCRIPTOR
     }
 
     endMaxRegion = desc->PhysicalStart + (desc->NumberOfPages * 0x1000ull);
-    printf("- 0x%x - 0x%x (%d)\n", desc->PhysicalStart, endMaxRegion, desc->NumberOfPages);
 
     if (((EFI_MEMORY_DESCRIPTOR*)maxDesc)->NumberOfPages < desc->NumberOfPages)
       secondMaxDesc = maxDesc, maxDesc = ptr;
@@ -86,20 +96,19 @@ bool initMemoryManagement(EFI_BOOT_SERVICES* BootServices, EFI_MEMORY_DESCRIPTOR
 
   EFI_MEMORY_DESCRIPTOR* desc = (EFI_MEMORY_DESCRIPTOR*)maxDesc;
   endMaxRegion                = desc->PhysicalStart + (desc->NumberOfPages * 0x1000ull);
-  printf("Vung nho lon nhat: 0x%x - 0x%x (%d)\n", desc->PhysicalStart, endMaxRegion, desc->NumberOfPages);
-  startMaxRegion = desc->PhysicalStart;
+  startMaxRegion              = desc->PhysicalStart;
+  ptrMaxRegion                = startMaxRegion;
 
-  desc            = (EFI_MEMORY_DESCRIPTOR*)secondMaxDesc;
-  end2ndMaxRegion = desc->PhysicalStart + (desc->NumberOfPages * 0x1000ull);
-  printf("Vung nho lon nhi: 0x%x - 0x%x (%d)\n", desc->PhysicalStart, end2ndMaxRegion, desc->NumberOfPages);
+  desc              = (EFI_MEMORY_DESCRIPTOR*)secondMaxDesc;
+  end2ndMaxRegion   = desc->PhysicalStart + (desc->NumberOfPages * 0x1000ull);
   start2ndMaxRegion = desc->PhysicalStart;
+  ptr2ndMaxRegion   = start2ndMaxRegion;
 
   return true;
 }
 
 uint64_t makePte(uint64_t physicalAddress, uint64_t flags)
 {
-  uint64_t   pte     = 0;
   const bool nonLeaf = (flags & PAGE_NONLEAF) != 0;
 
   // Thành phần không hiện diện: trả về sạch tuyệt đối, không giữ lại địa chỉ vật lý
@@ -110,130 +119,17 @@ uint64_t makePte(uint64_t physicalAddress, uint64_t flags)
     return 0;
   }
 
-#if defined(__x86_64__)
-  pte  = physicalAddress & 0x000ffffffffff000ull;
-  pte |= (1ull << 0); // P
-
-  if (nonLeaf)
-  {
-    pte |= (1ull << 1); // R/W = 1 (permissive)
-    pte |= (1ull << 2); // U/S = 1 (permissive)
-  } else
-  {
-    if (flags & PAGE_WRITE) pte |= (1ull << 1);  // R/W
-    if (flags & PAGE_USER) pte |= (1ull << 2);   // U/S
-    if (flags & PAGE_GLOBAL) pte |= (1ull << 8); // G
-    if (flags & PAGE_HUGE) pte |= (1ull << 7);   // PS
-
-    if (!(flags & PAGE_EXEC))
-    {
-      pte |= (1ull << 63); // XD / NX
-    }
-
-    if (flags & PAGE_MMIO)
-    {
-      pte |= (1ull << 4) | (1ull << 3); // PCD=1, PWT=1
-    } else if (flags & PAGE_NOCACHE)
-    {
-      pte |= (1ull << 4); // PCD=1
-    }
-  }
-
-#elif defined(__aarch64__)
-  pte = physicalAddress & 0x0000fffffffff000ull;
-
-  if (nonLeaf)
-  {
-    pte |= 0x3ull; // Table descriptor
-  } else
-  {
-    pte |= (flags & PAGE_HUGE) ? 0x1ull : 0x3ull;
-
-    if (flags & PAGE_USER)
-    {
-      pte |= (1ull << 6); // AP[1] = 1
-    }
-    if (!(flags & PAGE_WRITE))
-    {
-      pte |= (1ull << 7); // AP[2] = 1 (Read-Only)
-    }
-
-    if (!(flags & PAGE_EXEC))
-    {
-      pte |= (1ull << 54) | (1ull << 53); // UXN=1 & PXN=1
-    } else if (flags & PAGE_USER)
-    {
-      pte |= (1ull << 53); // PXN=1 only
-    } else
-    {
-      pte |= (1ull << 54); // UXN=1 only
-    }
-
-    if (!(flags & PAGE_GLOBAL))
-    {
-      pte |= (1ull << 11); // nG = 1
-    }
-
-    pte |= (3ull << 8);  // SH = Inner Shareable
-    pte |= (1ull << 10); // AF = Access Flag
-
-    if (flags & PAGE_MMIO)
-    {
-      pte |= (1ull << 2); // AttrIndx = 1 (Device MMIO)
-    } else if (flags & PAGE_NOCACHE)
-    {
-      pte |= (2ull << 2); // AttrIndx = 2 (Normal Non-cacheable)
-    }
-  }
-
-#elif defined(__riscv)
-  pte  = ((physicalAddress >> 12) & 0xFFFFFFFFFFFull) << 10;
-  pte |= (1ull << 0); // V
-
-  if (!nonLeaf)
-  {
-    if (flags & PAGE_WRITE)
-    {
-      pte |= (1ull << 2) | (1ull << 1); // W=1 kéo theo R=1
-    } else if (flags & PAGE_READ)
-    {
-      pte |= (1ull << 1); // R only
-    }
-
-    if (flags & PAGE_EXEC) pte |= (1ull << 3);   // X
-    if (flags & PAGE_USER) pte |= (1ull << 4);   // U
-    if (flags & PAGE_GLOBAL) pte |= (1ull << 5); // G
-
-    pte |= (1ull << 6);                          // A
-    if (flags & PAGE_WRITE)
-    {
-      pte |= (1ull << 7); // D
-    }
-
-    if (flags & PAGE_MMIO)
-    {
-      pte |= (2ull << 61); // PBMT = IO
-    } else if (flags & PAGE_NOCACHE)
-    {
-      pte |= (1ull << 61); // PBMT = NC
-    }
-  }
-
-#else
-#error "Dòng vi xử lý này chưa được VNExos hỗ trợ!"
-#endif
-
-  return pte;
+  return archMakePte(physicalAddress, flags, nonLeaf);
 }
 
 PageTable* allocateZeroPageTable()
 {
-  if (start2ndMaxRegion + 0x1000 > end2ndMaxRegion)
+  if (ptr2ndMaxRegion + 0x1000 > end2ndMaxRegion)
     return nullptr;
 
-  PageTable* page = reinterpret_cast<PageTable*>(start2ndMaxRegion);
+  PageTable* page = reinterpret_cast<PageTable*>(ptr2ndMaxRegion);
 
-  start2ndMaxRegion += 0x1000;
+  ptr2ndMaxRegion += 0x1000;
   memset(page, 0, 0x1000);
 
   return page;
@@ -253,4 +149,9 @@ void* allocatePages(uint64_t numberOfPages)
 void clearPages()
 {
   ptrMaxRegion = startMaxRegion;
+}
+
+uint64_t toVirtualAddress(uint16_t rootIndex, uint16_t upperIndex, uint16_t middleIndex, uint16_t lowerIndex)
+{
+  return archToVirtualAddress(rootIndex, upperIndex, middleIndex, lowerIndex);
 }

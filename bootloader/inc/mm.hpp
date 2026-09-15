@@ -108,3 +108,5 @@ PageTable* allocateZeroPageTable();
 
 void* allocatePages(uint64_t numberOfPages);
 void  clearPages();
+
+uint64_t toVirtualAddress(uint16_t rootIndex, uint16_t upperIndex, uint16_t middleIndex, uint16_t lowerIndex);
